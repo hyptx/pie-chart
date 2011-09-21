@@ -1,9 +1,9 @@
 <?php /* HypPieChart - GD Library pie charting system */
 
 class HypPieChart{
-	private $type,$width,$height,$arc_width,$arc_height,$arc_thickness,$background,$colors_array;
+	private $type,$width,$height,$arc_width,$arc_height,$arc_thickness,$arc_color_shift,$background,$colors_array;
 	public function __construct($args = ''){
-		$defaults = array('type' => 'png','width' => 300,'height' => 300,'arc_width' => 200,'arc_height' => 100,'arc_thickness' => 10,'background' => 'FFFFFF','testing' => false);
+		$defaults = array('type' => 'png','width' => 300,'height' => 300,'arc_width' => 200,'arc_height' => 100,'arc_thickness' => 10,'side_color_shift' => 20,'background' => 'FFFFFF','testing' => false);
 		//Store properties
 		$properties = $this->parse_args($args,$defaults);
 		extract($properties);
@@ -56,10 +56,25 @@ class HypPieChart{
 	public function set_colors($colors_array){
 		//Array as 'white' => 'ffffff'
 		$this->colors_array = $colors_array;
-		$this->colors_array['background'] = $this->background;
+		if($this->background == 'transparent') $this->colors_array['background'] = 'ffffff';
+		else $this->colors_array['background'] = $this->background;
 	}
 	public function hex_change($hex,$percent = 10,$shift_dir = '-'){
 		return $this->hex_shift($hex,$percent,$shift_dir);
+	}
+	public function no_graph_data(){
+		$image = imagecreatetruecolor($this->width,$this->height);
+		if($this->background == 'transparent'){
+			$background = $this->allocateColor($image,'ffffff');
+			imagecolortransparent($image,$background);
+		}
+		else $background = $this->allocateColor($image,$this->background);
+		imagefilltoborder($image,0,0,$background,$background);
+		$black = imagecolorallocate($image,0,0,0);
+		imagestring($image,5,($this->width / 2) - 67,($this->height / 2) - 6,'no graphing data',$black);
+		header('Content-type: image/png');
+		imagepng($image);
+		imagedestroy($image);
 	}
 	public function set_pieces($pieces_array){
 		//Array as 'name' => 10  - 10 is the percent 3.6 = 1% of 360
@@ -70,6 +85,7 @@ class HypPieChart{
 	public function build(){
 		$this->check_for_errors();
 		$image = imagecreatetruecolor($this->width,$this->height);
+		$black = imagecolorallocate($image,0,0,0);
 		$arc_width = $this->arc_width;
 		$arc_height = $this->arc_height;
 		$arc_center_x = $this->width / 2;
@@ -80,14 +96,16 @@ class HypPieChart{
 			$color_index[] = $key;
 			${$key} = $this->allocateColor($image,$value);
 			$temp = $key . '_2';
-			$$temp = $this->allocateColor($image,$this->hex_shift($value,24));
+			$$temp = $this->allocateColor($image,$this->hex_shift($value,$this->side_color_shift));
 		}
 		//Background
+		if($this->background == 'transparent') imagecolortransparent($image,$background);
 		imagefilltoborder($image,0,0,$background,$background);
 		//Draw Side	
 		for($i = $arc_side_i; $i > $arc_center_y; $i--){
 			$ii = 0; $piece_start_deg = 0; $piece_end_deg = 0;
 			foreach($this->pieces_array as $key => $value){
+				if($value == 0){$ii++; continue;}
 				$color = $color_index[$ii] . '_2';
 				$display_color = ${$color};
 				$piece_deg = ($value / 100) * 360;
@@ -104,18 +122,18 @@ class HypPieChart{
 			$display_color = ${$color};
 			$piece_deg = ($value / 100) * 360;
 			$piece_end_deg += $piece_deg;
+			$text_y = $arc_center_y + (($arc_height / 2 )+ 20) + ($ii * 18);
+			imagefilledrectangle($image,0,$text_y + 2,12,$text_y + 13,$display_color);
+			imagestring($image,4,20,$text_y,$key,$black);
+			imagestring($image,4,$this->width - 50,$text_y,number_format(round($value,2),2) . '%',$black);
+			if($value == 0){$ii++; continue;}
 			imagefilledarc($image,$arc_center_x,$arc_center_y,$arc_width,$arc_height,$piece_start_deg,$piece_end_deg,$display_color,IMG_ARC_PIE);
 			$piece_start_deg = $piece_end_deg;
 			$ii++;
 		}
-		
-		
-		// Write the string at the top left
-		imagestring($image, 5, 0, 0, 'Hello world!', $navy);
-		
-		//Don't send header if testing
+		//Don't send header - use for testing
 		if($this->testing) return;
-		
+		//Image Header
 		header('Content-type: image/png');
 		imagepng($image);
 		imagedestroy($image);
