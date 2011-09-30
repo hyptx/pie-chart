@@ -125,7 +125,7 @@ class HypPieChart{
 			$text_y = $arc_center_y + (($arc_height / 2 )+ 20) + ($ii * 18);
 			imagefilledrectangle($image,0,$text_y + 2,12,$text_y + 13,$display_color);
 			imagestring($image,4,20,$text_y,$key,$black);
-			imagestring($image,4,$this->width - 50,$text_y,number_format(round($value,2),2) . '%',$black);
+			imagestring($image,4,$this->width - 56,$text_y,number_format(round($value,2),2) . '%',$black);
 			if($value == 0){$ii++; continue;}
 			imagefilledarc($image,$arc_center_x,$arc_center_y,$arc_width,$arc_height,$piece_start_deg,$piece_end_deg,$display_color,IMG_ARC_PIE);
 			$piece_start_deg = $piece_end_deg;
